@@ -1,7 +1,22 @@
 pipeline {
-    agent any  // Simple agent that works without Docker
+    agent any
     
     stages {
+        stage('Check System Dependencies') {
+            steps {
+                sh '''
+                    echo "=== Checking System Dependencies ==="
+                    echo "1. Checking Python..."
+                    if command -v python3 >/dev/null 2>&1; then
+                        echo "✅ Python3 found: $(python3 --version)"
+                    else
+                        echo "❌ ERROR: Python3 not found"
+                        exit 1
+                    fi
+                '''
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -10,50 +25,37 @@ pipeline {
             }
         }
         
-        stage('Environment Info') {
+        stage('Create Virtual Environment') {
             steps {
                 sh '''
-                    echo "=== Environment Information ==="
-                    echo "Working directory:"
-                    pwd
-                    echo "Contents:"
-                    ls -la
-                    echo "Python availability:"
-                    python3 --version 2>/dev/null || python --version 2>/dev/null || echo "Python not found in standard locations"
-                    echo "Pip availability:"
-                    pip3 --version 2>/dev/null || pip --version 2>/dev/null || echo "Pip not found in standard locations"
+                    echo "=== Creating Python Virtual Environment ==="
+                    python3 -m venv jenkins_venv
+                    echo "Virtual environment created"
+                    
+                    # Activate venv and check Python
+                    . jenkins_venv/bin/activate
+                    python --version
+                    pip --version
                 '''
             }
         }
         
-        stage('Setup Python') {
+        stage('Install Dependencies') {
             steps {
                 sh '''
-                    echo "=== Setting up Python Environment ==="
-                    # Try to use available Python
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD=python3
-                        PIP_CMD=pip3
-                    elif command -v python &> /dev/null; then
-                        PYTHON_CMD=python
-                        PIP_CMD=pip
-                    else
-                        echo "ERROR: No Python installation found"
-                        exit 1
-                    fi
-                    
-                    echo "Using: $PYTHON_CMD and $PIP_CMD"
-                    $PYTHON_CMD --version
-                    $PIP_CMD --version
+                    echo "=== Installing Python Dependencies ==="
+                    . jenkins_venv/bin/activate
                     
                     # Upgrade pip and install dependencies
-                    $PIP_CMD install --user --upgrade pip
-                    $PIP_CMD install --user pytest pytest-html
+                    pip install --upgrade pip
+                    pip install pytest pytest-html
                     
-                    # Install requirements if they exist
+                    # Install project dependencies
                     if [ -f requirements.txt ]; then
                         echo "Installing from requirements.txt"
-                        $PIP_CMD install --user -r requirements.txt
+                        pip install -r requirements.txt
+                    else
+                        echo "No requirements.txt found"
                     fi
                 '''
             }
@@ -63,19 +65,14 @@ pipeline {
             steps {
                 sh '''
                     echo "=== Running Tests ==="
-                    # Determine Python command
-                    if command -v python3 &> /dev/null; then
-                        PYTHON_CMD=python3
-                    else
-                        PYTHON_CMD=python
-                    fi
+                    . jenkins_venv/bin/activate
                     
-                    # Create tests directory if it doesn't exist
+                    # Create tests directory if needed
                     mkdir -p tests
                     
-                    # Create a simple test file if no tests exist
-                    if [ ! -f tests/test_example.py ] && [ ! -f tests/test_*.py ]; then
-                        echo "Creating example test file..."
+                    # Create sample test if no tests exist
+                    if [ ! -f tests/test_example.py ]; then
+                        echo "Creating sample test file..."
                         cat > tests/test_example.py << 'EOF'
 def test_addition():
     """Test basic addition"""
@@ -85,20 +82,20 @@ def test_subtraction():
     """Test basic subtraction"""
     assert 5 - 3 == 2
 
-def test_list_length():
+def test_list_operations():
     """Test list operations"""
     assert len([1, 2, 3]) == 3
 
 def test_string_operations():
     """Test string operations"""
     assert "hello".upper() == "HELLO"
+    assert "WORLD".lower() == "world"
 EOF
-                        echo "Created sample test file: tests/test_example.py"
                     fi
                     
-                    # Run pytest with HTML report
-                    echo "Running tests..."
-                    $PYTHON_CMD -m pytest tests/ -v --html=test_report.html --self-contained-html
+                    # Run tests with HTML report
+                    echo "Running pytest..."
+                    python -m pytest tests/ -v --html=test_report.html --self-contained-html
                     
                     echo "Test execution completed"
                 '''
@@ -106,7 +103,7 @@ EOF
             post {
                 always {
                     publishHTML([
-                        allowMissing: false,
+                        allowMissing: true,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
                         reportDir: '.',
@@ -114,6 +111,19 @@ EOF
                         reportName: 'Pytest Report'
                     ])
                 }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                sh '''
+                    echo "=== Cleaning Up ==="
+                    # List generated files
+                    echo "Generated files:"
+                    ls -la *.html 2>/dev/null || echo "No HTML files"
+                    echo "Virtual environment size:"
+                    du -sh jenkins_venv 2>/dev/null || echo "No venv directory"
+                '''
             }
         }
     }
