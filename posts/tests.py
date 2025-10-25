@@ -1,4 +1,7 @@
 from django.test import TestCase
+from django.utils import timezone
+
+
 from .models import Post
 # Create your tests here.
 class PostModelTest(TestCase):
@@ -17,4 +20,4 @@ class PostModelTest(TestCase):
     
     def test_post_created_auto_now_add(self):
         post=Post.objects.get(id=1)
-        self.assertEqual(post.created)
+        self.assertEqual(post.created.date(), timezone.now().date())
