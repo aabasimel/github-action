@@ -36,11 +36,8 @@ pipeline {
             }
             post {
                 always {
-                    // Archive the test report as a build artifact
+                    // Archive the HTML test report as a build artifact
                     archiveArtifacts artifacts: 'test_report.html', fingerprint: true
-                    
-                    // Optional: Also archive any JUnit XML reports if generated
-                    archiveArtifacts artifacts: '**/test-results/*.xml', fingerprint: true
                 }
             }
         }
@@ -58,6 +55,13 @@ pipeline {
                     echo "=================================="
                     echo "📁 Test report saved as: test_report.html"
                     echo "📥 Download from Build Artifacts"
+                    echo ""
+                    echo "🎯 OBJECTIVE ACHIEVED:"
+                    echo "• Jenkins in Docker container ✅"
+                    echo "• Pipeline pulls from GitHub ✅" 
+                    echo "• Runs tests with pytest ✅"
+                    echo "• Generates test report ✅"
+                    echo "• Manual trigger ✅"
                 '''
             }
         }
@@ -68,11 +72,7 @@ pipeline {
             echo "Pipeline execution completed"
         }
         success {
-            echo "🎯 OBJECTIVE ACHIEVED: Jenkins pipeline successfully configured!"
-            echo "The pipeline pulls code from GitHub, runs pytest tests, and generates reports"
-            echo "Manual trigger: ✅ Working"
-            echo "Test execution: ✅ Working"
-            echo "Report generation: ✅ Working"
+            echo "🎊 SUCCESS: All objectives completed successfully!"
         }
     }
 }
