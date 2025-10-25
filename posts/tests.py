@@ -12,7 +12,7 @@ class PostModelTest(TestCase):
     def test_post_creation(self):
         post=Post.objects.get(id=1)
         self.assertEqual(post.title, 'Test Post')
-        self.assertEqual(post.body, 'Test post contect')
+        self.assertEqual(post.body, 'Test post content')
 
     
     def test_post_created_auto_now_add(self):
